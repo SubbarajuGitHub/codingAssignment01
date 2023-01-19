@@ -6,6 +6,9 @@ app.use(express.json());
 const { open } = require("sqlite");
 const sqlite3 = require("sqlite3");
 
+const format = require("date-fns/format");
+const isValid = require("date-fns/isValid");
+
 const path = require("path");
 
 const dbPath = path.join(__dirname, "todoApplication.db");
@@ -86,7 +89,8 @@ app.get("/todos/", async (request, response) => {
            FROM
            todo 
            WHERE
-           status = '${status}'`;
+           status = '${status}'
+           `;
       }
       break;
     case Priority(request.query):
@@ -218,8 +222,8 @@ app.get("/todos/:todoId/", async (request, response) => {
 
 //API 3
 
-app.get("/agenda/", (request, response) => {
-  const newDate = format(new Date(2021, 12, 12), "yyyy-MM-dd");
+app.get("/agenda/", async (request, response) => {
+  const newDate = format(new Date(2021, 11, 12), "yyyy-MM-dd");
   const queryDate = `
   SELECT
   *
@@ -227,6 +231,8 @@ app.get("/agenda/", (request, response) => {
   todo
   WHERE
   due_date=${newDate}`;
+  const dates = await DataBase.all(queryDate);
+  response.send(dates);
 });
 
 //API 4 Create a new todo in todo Table
@@ -277,6 +283,7 @@ app.put("/todos/:todoId/", async (request, response) => {
       updateColumn = "dueDate";
       break;
   }
+
   const previousTodoQuery = `
     SELECT
       *
@@ -306,8 +313,19 @@ app.put("/todos/:todoId/", async (request, response) => {
     WHERE
       id = ${todoId};`;
 
-  await DataBase.run(updateTodoQuery);
-  response.send(`${updateColumn} Updated`);
+  if (!["WORK", "HOME", "LEARNING"].includes(category)) {
+    return response.status(400).send("Invalid Todo Category");
+  }
+  if (!["HIGH", "MEDIUM", "LOW"].includes(priority)) {
+    return response.status(400).send("Invalid Todo Priority");
+  }
+
+  if (!["TO DO", "IN PROGRESS", "DONE"].includes(status)) {
+    return response.status(400).send("Invalid Todo Status");
+  } else {
+    await DataBase.run(updateTodoQuery);
+    response.send(`${updateColumn} Updated`);
+  }
 });
 
 //API 6 Delete
